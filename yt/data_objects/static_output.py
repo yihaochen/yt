@@ -723,7 +723,6 @@ class Dataset(object):
                 filter, filter.missing(self.derived_field_list))
         fi = self.field_info
         fd = self.field_dependencies
-        available = False
         for fn in self.derived_field_list:
             if fn[0] == filter.filtered_type:
                 # Now we can add this
