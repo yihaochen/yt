@@ -79,6 +79,7 @@ from yt.geometry.coordinates.api import \
     GeographicCoordinateHandler, \
     SpectralCubeCoordinateHandler, \
     InternalGeographicCoordinateHandler
+from yt.fields.field_detector import FieldDetector
 
 # We want to support the movie format in the future.
 # When such a thing comes to pass, I'll move all the stuff that is contant up
@@ -1218,7 +1219,7 @@ class Dataset(object):
         self.field_dependencies.update(deps)
 
     def add_deposited_particle_field(self, deposit_field, method, kernel_name='cubic',
-                                     weight_field='particle_mass'):
+                                     weight_field='particle_mass', extend_cells=None):
         """Add a new deposited particle field
 
         Creates a new deposited field based on the particle *deposit_field*.
@@ -1274,8 +1275,17 @@ class Dataset(object):
             """
             Create a grid field for particle quantities using given method.
             """
-            pos = data[ptype, "particle_position"]
-            fields = [data[ptype, deposit_field]]
+            if extend_cells and not isinstance(data, FieldDetector):
+                left_edge = np.maximum(data.LeftEdge-data.dds*extend_cells,\
+                                       self.domain_left_edge)
+                right_edge = np.minimum(data.RightEdge+data.dds*extend_cells,\
+                                        self.domain_right_edge)
+                box = self.box(left_edge, right_edge)
+                pos = box[ptype, "particle_position"]
+                fields = [box[ptype, deposit_field]]
+            else:
+                pos = data[ptype, "particle_position"]
+                fields = [data[ptype, deposit_field]]
             if method == 'weighted_mean':
                 fields.append(data[ptype, weight_field])
             fields = [np.ascontiguousarray(f) for f in fields]
