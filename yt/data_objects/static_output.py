@@ -677,12 +677,18 @@ class Dataset(object):
         return True
 
     def _setup_filtered_type(self, filter):
+        # Check if the filtered_type of this filter exists, otherwise try to add it
+        available = False
+        if filter.filtered_type in filter_registry:
+            available = self.add_particle_filter(filter.filtered_type)
+            mylog.info("Adding particle filter dependency '%s' for '%s'",
+                       filter.filtered_type, filter.name)
+
         if not filter.available(self.derived_field_list):
             raise YTIllDefinedParticleFilter(
                 filter, filter.missing(self.derived_field_list))
         fi = self.field_info
         fd = self.field_dependencies
-        available = False
         for fn in self.derived_field_list:
             if fn[0] == filter.filtered_type:
                 # Now we can add this
