@@ -425,6 +425,62 @@ class QuiverCallback(PlotCallback):
         plot._axes.set_xlim(xx0,xx1)
         plot._axes.set_ylim(yy0,yy1)
 
+class PolLineCallback(PlotCallback):
+    """
+    annotate_polline(frb_I, frb_Q, frb_U, factor=16, scale=None, scale_units=None,
+                    normalize=False, bv_x=0, bv_y=0):
+
+    Adds a line plot to any plot, using the *field_x* and *field_y*
+    from the associated data, skipping every *factor* datapoints
+    *scale* is the data units per arrow length unit using *scale_units*
+    (see matplotlib.axes.Axes.quiver for more info)
+    """
+    _type_name = "polline"
+    _supported_geometries = ("cartesian")
+    def __init__(self, frb_I, frb_Q, frb_U, factor=16, scale=None,
+                 scale_units=None, normalize=False, bv_x=0, bv_y=0):
+        PlotCallback.__init__(self)
+        self.frb_I = frb_I
+        self.frb_Q = frb_Q
+        self.frb_U = frb_U
+        self.bv_x = bv_x
+        self.bv_y = bv_y
+        self.factor = factor
+        self.scale = scale
+        self.scale_units = scale_units
+        self.normalize = normalize
+
+    def __call__(self, plot):
+        x0, x1 = plot.xlim
+        y0, y1 = plot.ylim
+        xx0, xx1 = plot._axes.get_xlim()
+        yy0, yy1 = plot._axes.get_ylim()
+        plot._axes.hold(True)
+        nx = plot.image._A.shape[0] / self.factor
+        ny = plot.image._A.shape[1] / self.factor
+
+        X,Y = np.meshgrid(np.linspace(xx0,xx1,nx,endpoint=True),
+                          np.linspace(yy0,yy1,ny,endpoint=True))
+        I_bin = self.frb_I.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
+        Q_bin = self.frb_Q.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
+        U_bin = self.frb_U.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
+
+        psi = 0.5*np.arctan2(U_bin, Q_bin)
+        frac = np.sqrt(Q_bin**2+U_bin**2)/I_bin
+
+        # Rotated 90 deg to show the direction of magnetic fields
+        pixX = frac*np.sin(psi)
+        pixY = frac*np.cos(psi)
+        if self.normalize:
+            nn = np.sqrt(pixX**2 + pixY**2)
+            pixX /= nn
+            pixY /= nn
+        quiveropts = dict(headlength=0, headwidth=1, pivot='middle')
+        plot._axes.quiver(X,Y, pixX, pixY, scale=self.scale, scale_units=self.scale_units, **quiveropts)
+        plot._axes.set_xlim(xx0,xx1)
+        plot._axes.set_ylim(yy0,yy1)
+        plot._axes.hold(False)
+
 class ContourCallback(PlotCallback):
     """
     Add contours in *field* to the plot.  *ncont* governs the number of
