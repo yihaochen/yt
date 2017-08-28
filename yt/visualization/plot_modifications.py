@@ -456,8 +456,8 @@ class PolLineCallback(PlotCallback):
         xx0, xx1 = plot._axes.get_xlim()
         yy0, yy1 = plot._axes.get_ylim()
         plot._axes.hold(True)
-        nx = plot.image._A.shape[0] / self.factor
-        ny = plot.image._A.shape[1] / self.factor
+        nx = plot.image._A.shape[0] // self.factor
+        ny = plot.image._A.shape[1] // self.factor
 
         X,Y = np.meshgrid(np.linspace(xx0,xx1,nx,endpoint=True),
                           np.linspace(yy0,yy1,ny,endpoint=True))
