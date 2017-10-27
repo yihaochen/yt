@@ -501,20 +501,27 @@ class PolLineCallback(PlotCallback):
         xx0, xx1 = plot._axes.get_xlim()
         yy0, yy1 = plot._axes.get_ylim()
         plot._axes.hold(True)
-        nx = plot.image._A.shape[0] // self.factor
-        ny = plot.image._A.shape[1] // self.factor
+        nx = plot.image._A.shape[1] // self.factor
+        ny = plot.image._A.shape[0] // self.factor
 
-        X,Y = np.meshgrid(np.linspace(xx0,xx1,nx,endpoint=True),
-                          np.linspace(yy0,yy1,ny,endpoint=True))
-        I_bin = self.frb_I.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
-        Q_bin = self.frb_Q.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
-        U_bin = self.frb_U.reshape(nx, self.factor, ny, self.factor).sum(3).sum(1)
+        # Let the end points align with the cell centers
+        dx = (xx1-xx0)/nx*0.5
+        dy = (yy1-yy0)/ny*0.5
 
+        # Note that X.shape = Y.shape = (ny, nx)
+        X,Y = np.meshgrid(np.linspace(xx0+dx,xx1-dx,nx,endpoint=True),
+                          np.linspace(yy0+dy,yy1-dy,ny,endpoint=True))
+
+        I_bin = self.frb_I.reshape(ny, self.factor, nx, self.factor).sum(3).sum(1)
+        Q_bin = self.frb_Q.reshape(ny, self.factor, nx, self.factor).sum(3).sum(1)
+        U_bin = self.frb_U.reshape(ny, self.factor, nx, self.factor).sum(3).sum(1)
+
+        # psi is the angle relative the x-axis
         psi = 0.5*np.arctan2(U_bin, Q_bin)
         frac = np.sqrt(Q_bin**2+U_bin**2)/I_bin
 
         # Rotated 90 deg to show the direction of magnetic fields
-        pixX = frac*np.sin(psi)
+        pixX = -frac*np.sin(psi)
         pixY = frac*np.cos(psi)
         if self.normalize:
             nn = np.sqrt(pixX**2 + pixY**2)
