@@ -483,7 +483,7 @@ class PolLineCallback(PlotCallback):
     _type_name = "polline"
     _supported_geometries = ("cartesian")
     def __init__(self, frb_I, frb_Q, frb_U, factor=16, scale=None,
-                 scale_units=None, normalize=False, bv_x=0, bv_y=0):
+                 scale_units=None, cutoff_I=None, normalize=False, bv_x=0, bv_y=0):
         PlotCallback.__init__(self)
         self.frb_I = frb_I
         self.frb_Q = frb_Q
@@ -494,6 +494,7 @@ class PolLineCallback(PlotCallback):
         self.scale = scale
         self.scale_units = scale_units
         self.normalize = normalize
+        self.cutoff_I = cutoff_I
 
     def __call__(self, plot):
         x0, x1 = plot.xlim
@@ -519,6 +520,11 @@ class PolLineCallback(PlotCallback):
         # psi is the angle relative the x-axis
         psi = 0.5*np.arctan2(U_bin, Q_bin)
         frac = np.sqrt(Q_bin**2+U_bin**2)/I_bin
+
+        if self.cutoff_I:
+            mask = I_bin < self.cutoff_I
+            psi[mask] = 0.0
+            frac[mask] = 0.0
 
         # Rotated 90 deg to show the direction of magnetic fields
         pixX = -frac*np.sin(psi)
