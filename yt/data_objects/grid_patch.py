@@ -365,7 +365,7 @@ class AMRGridPatch(YTSelectionContainer):
         raise NotImplementedError
 
     def deposit(self, positions, fields = None, method = None,
-                kernel_name = 'cubic'):
+                kernel_name = 'cubic', extend_cells = 0):
         # Here we perform our particle deposition.
         cls = getattr(particle_deposit, "deposit_%s" % method, None)
         if cls is None:
@@ -375,7 +375,7 @@ class AMRGridPatch(YTSelectionContainer):
         # routines, so we reverse it here to match the convention there
         op = cls(tuple(self.ActiveDimensions[::-1]), kernel_name)
         op.initialize()
-        op.process_grid(self, positions, fields)
+        op.process_grid(self, positions, fields, extend_cells = extend_cells)
         vals = op.finalize()
         if vals is None: return
         # Fortran-ordered, so transpose.
