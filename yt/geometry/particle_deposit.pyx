@@ -110,7 +110,7 @@ cdef class ParticleDepositOperation:
     @cython.wraparound(False)
     def process_grid(self, gobj,
                      np.ndarray[np.float64_t, ndim=2] positions,
-                     fields = None):
+                     fields = None, extend_cells = 0):
         cdef int nf, i, j
         if fields is None:
             fields = []
@@ -122,25 +122,27 @@ cdef class ParticleDepositOperation:
         cdef np.int64_t gid = getattr(gobj, "id", -1)
         cdef np.float64_t dds[3]
         cdef np.float64_t left_edge[3]
-        cdef np.float64_t right_edge[3]
+        cdef np.float64_t pleft_edge[3]
+        cdef np.float64_t pright_edge[3]
         cdef int dims[3]
         for i in range(3):
             dds[i] = gobj.dds[i]
             left_edge[i] = gobj.LeftEdge[i]
-            right_edge[i] = gobj.RightEdge[i]
+            pleft_edge[i] = gobj.LeftEdge[i] - gobj.dds[i]*extend_cells
+            pright_edge[i] = gobj.RightEdge[i] + gobj.dds[i]*extend_cells
             dims[i] = gobj.ActiveDimensions[i]
         for i in range(positions.shape[0]):
             # Now we process
-            for j in range(nf):
-                field_vals[j] = field_pointers[j,i]
             for j in range(3):
                 pos[j] = positions[i, j]
             continue_loop = False
             for j in range(3):
-                if pos[j] < left_edge[j] or pos[j] > right_edge[j]:
+                if pos[j] < pleft_edge[j] or pos[j] > pright_edge[j]:
                     continue_loop = True
             if continue_loop:
                 continue
+            for j in range(nf):
+                field_vals[j] = field_pointers[j,i]
             self.process(dims, left_edge, dds, 0, pos, field_vals, gid)
             if self.update_values == 1:
                 for j in range(nf):
