@@ -21,6 +21,7 @@ cimport cython
 from libc.math cimport sqrt
 from cpython cimport PyObject
 from yt.utilities.lib.fp_utils cimport *
+from yt.utilities.lib.argsort import argsort
 
 from oct_container cimport \
     Oct, OctreeContainer, OctInfo
@@ -59,7 +60,7 @@ cdef class ParticleDepositOperation:
         if fields is None:
             fields = []
         nf = len(fields)
-        cdef np.float64_t[::cython.view.indirect, ::1] field_pointers 
+        cdef np.float64_t[::cython.view.indirect, ::1] field_pointers
         if nf > 0: field_pointers = OnceIndirect(fields)
         cdef np.float64_t pos[3]
         cdef np.float64_t[:] field_vals = np.empty(nf, dtype="float64")
@@ -116,7 +117,7 @@ cdef class ParticleDepositOperation:
             fields = []
         nf = len(fields)
         cdef np.float64_t[:] field_vals = np.empty(nf, dtype="float64")
-        cdef np.float64_t[::cython.view.indirect, ::1] field_pointers 
+        cdef np.float64_t[::cython.view.indirect, ::1] field_pointers
         if nf > 0: field_pointers = OnceIndirect(fields)
         cdef np.float64_t pos[3]
         cdef np.int64_t gid = getattr(gobj, "id", -1)
@@ -502,3 +503,82 @@ cdef class NNParticleField(ParticleDepositOperation):
         return nn
 
 deposit_nearest = NNParticleField
+
+cdef class NNWeightedParticleField(ParticleDepositOperation):
+    cdef np.float64_t[:,:,:,:] nnfield
+    cdef np.float64_t[:,:,:,:] distfield
+    cdef np.int32_t[:,:,:,:] distarg
+    cdef int npart
+    def initialize(self):
+        self.npart = 10
+        self.nnfield = append_axes(np.zeros(np.append(self.nvals, self.npart),
+            dtype="float64", order='f'), 4)
+        self.distfield = append_axes(np.zeros(np.append(self.nvals, self.npart),
+            dtype="float64", order='F'), 4)
+        self.distarg = np.asarray(np.broadcast_to(np.arange(self.npart),
+                                  np.append(self.nvals, self.npart)),
+                                  dtype="int32", order='C')
+        # distfield is 1/r**2
+        self.distfield[:] = 0.0
+
+    @cython.cdivision(True)
+    cdef int process(self, int dim[3],
+                     np.float64_t left_edge[3],
+                     np.float64_t dds[3],
+                     np.int64_t offset,
+                     np.float64_t ppos[3],
+                     np.float64_t[:] fields,
+                     np.int64_t domain_ind
+                     ) except -1:
+        # This one is a bit slow.  Every grid cell is going to be iterated
+        # over, and we're going to deposit particles in it.
+        cdef int i, j, k, p
+        cdef np.float64_t r2
+        cdef np.float64_t gpos[3]
+        cdef np.int32_t[:] argorder
+        gpos[0] = left_edge[0] + 0.5 * dds[0]
+        for i in range(dim[0]):
+            gpos[1] = left_edge[1] + 0.5 * dds[1]
+            for j in range(dim[1]):
+                gpos[2] = left_edge[2] + 0.5 * dds[2]
+                for k in range(dim[2]):
+                    r2 = 1./((ppos[0] - gpos[0])*(ppos[0] - gpos[0]) +
+                          (ppos[1] - gpos[1])*(ppos[1] - gpos[1]) +
+                          (ppos[2] - gpos[2])*(ppos[2] - gpos[2]))
+                    # If r2 is smaller than smallest elemnt, then skip
+                    # the comparison with other larger numbers to save
+                    # some time
+                    if r2 < self.distfield[k,j,i,self.distarg[k,j,i,0]]:
+                        continue
+                    for p in self.distarg[k,j,i,:]:
+                        if r2 > self.distfield[k,j,i,p]:
+                            self.distfield[k,j,i,p] = r2
+                            self.nnfield[k,j,i,p] = fields[0]
+                            argsort(self.distfield[k,j,i,:],
+                                    self.distarg[k,j,i,:])
+                            break
+                    gpos[2] += dds[2]
+                gpos[1] += dds[1]
+            gpos[0] += dds[0]
+        return 0
+
+    def finalize(self):
+        cdef int i, j, k, p
+        cdef np.float64_t[:,:,:] nnw, distw
+        nnw = np.zeros(self.nvals, dtype="float64", order='f')
+        distw = np.zeros(self.nvals, dtype="float64", order='f')
+        for i in range(self.nvals[0]):
+            for j in range(self.nvals[1]):
+                for k in range(self.nvals[2]):
+                    for p in self.distarg[k,j,i,::-1]:
+                        if self.distfield[k,j,i,p] > 0.0:
+                            nnw[k,j,i] += self.nnfield[k,j,i,p]*self.distfield[k,j,i,p]
+                            distw[k,j,i] += self.distfield[k,j,i,p]
+                        else:
+                            break
+                    if distw[k,j,i] > 0.0:
+                        nnw[k,j,i] /= distw[k,j,i]
+        return np.asarray(nnw)
+
+deposit_nearest_weighted = NNWeightedParticleField
+

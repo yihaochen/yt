@@ -185,6 +185,8 @@ cython_extensions = [
               libraries=std_libs),
     Extension("yt.utilities.cython_fortran_utils",
               ["yt/utilities/cython_fortran_utils.pyx"],
+    Extension("yt.utilities.lib.argsort",
+              ["yt/utilities/lib/argsort.pyx"],
               libraries=std_libs),
 ]
 
