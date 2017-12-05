@@ -183,6 +183,9 @@ cython_extensions = [
               extra_compile_args=omp_args,
               extra_link_args=omp_args,
               libraries=std_libs),
+    Extension("yt.utilities.lib.argsort",
+              ["yt/utilities/lib/argsort.pyx"],
+              libraries=std_libs),
 ]
 
 lib_exts = [

@@ -1262,7 +1262,8 @@ class Dataset(object):
         units = self.field_info[ptype, deposit_field].units
         take_log = self.field_info[ptype, deposit_field].take_log
         name_map = {"sum": "sum", "std":"std", "cic": "cic", "weighted_mean": "avg",
-                    "nearest": "nn", "simple_smooth": "ss", "count": "count"}
+                    "nearest": "nn", "simple_smooth": "ss", "count": "count",
+                    "nearest_weighted": "nnw"}
         field_name = "%s_" + name_map[method] + "_%s"
         field_name = field_name % (ptype, deposit_field.replace('particle_', ''))
 
