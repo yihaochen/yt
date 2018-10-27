@@ -172,6 +172,9 @@ def setup_fluid_fields(registry, ftype = "gas", slice_info = None):
     setup_gradient_fields(registry, (ftype, "density"), unit_system["density"],
                           slice_info)
 
+    setup_gradient_fields(registry, (ftype, "temperature"), unit_system["temperature"],
+                          slice_info)
+
     create_averaged_field(registry, "density", unit_system["density"],
                           ftype=ftype, slice_info=slice_info,
                           weight="cell_mass")
